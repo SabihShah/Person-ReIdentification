@@ -1,0 +1,18 @@
+
+numpy==1.26.4
+opencv-python==4.10.0.84
+scipy==1.13.1
+ultralytics==8.2.58
+filterpy==1.4.5               # Kalman filter for track motion model
+torchreid==0.2.5              # OSNet / ResNet-ReID backbones, pretrained weights loader
+# fast-reid is an alternative (more SOTA, harder install) - see notes below
+
+scikit-learn==1.5.1
+pandas==2.2.2
+pyyaml==6.0.1
+tqdm==4.66.4
+matplotlib==3.9.1
+# onnx==1.16.1
+# onnxruntime-gpu==1.18.1
+# tensorrt
+deep-sort-realtime==1.3.2
