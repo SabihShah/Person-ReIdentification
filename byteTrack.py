@@ -4,13 +4,13 @@ import cv2
 import numpy as np
 from torchreid.utils import FeatureExtractor
 
-SIM_THRESHOLD = 0.7
+SIM_THRESHOLD = 0.5         # HIGHER = STRICTER
 MAX_GALLERY_AGE = 300
-EMA_ALPHA = 0.9
+EMA_ALPHA = 0.7
 
 extractor = FeatureExtractor(
     model_name="osnet_x1_0",
-    model_path="/home/sabih-shah/.cache/torch/checkpoints/osnet_x1_0_imagenet.pth",
+    model_path="/home/hassan/.cache/torch/checkpoints/osnet_x1_0_imagenet.pth",
     image_size=(640, 480),
     device="cuda" if torch.cuda.is_available() else "cpu"
 )
