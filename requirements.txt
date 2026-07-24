@@ -16,3 +16,4 @@ matplotlib==3.9.1
 # onnxruntime-gpu==1.18.1
 # tensorrt
 deep-sort-realtime==1.3.2
+boxmot==10.0.83

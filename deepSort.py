@@ -6,13 +6,14 @@ model = YOLO("yolov8m.pt")
 
 tracker = DeepSort(
     max_iou_distance=0.5,        # IoU gating threshold (1 - IoU)
-    max_age=60,                  # frames to keep a lost track alive via Kalman-only prediction
+    max_age=200,                 # frames to keep a lost track alive via Kalman-only prediction
     n_init=3,                    # frames needed before a track is "confirmed"
     max_cosine_distance=0.5,     # ReID similarity threshold for matching
     nn_budget=100,               # max embedding stored per track id (gallery size)
     embedder="torchreid",        
     embedder_model_name="osnet_x1_0",
-    embedder_wts="/home/sabih-shah/.cache/torch/checkpoints/osnet_x1_0_imagenet.pth",
+    # embedder_wts="/home/hassan/.cache/torch/checkpoints/osnet_x1_0_imagenet.pth",
+    embedder_wts="osnet_ain_ms_d_c.pth",
     half=True,
     embedder_gpu=True
     )
