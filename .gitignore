@@ -3,3 +3,6 @@ yolov8m.pt
 testing.ipynb
 .vscode
 osnet_ain_ms_d_c.pth
+__pycache__
+test-videos
+
