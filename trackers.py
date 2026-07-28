@@ -18,10 +18,10 @@ class CrossCameraGallery:
     def _cosine_sim(a, b):
         return float(np.dot(a, b) / (np.linalg.norm(a) * np.linalg.norm(b) + 1e-6))
 
-    def _match_or_create(self, embedding):
+    def _match_or_create(self, embedding, exclude_camera_id):
         best_id, best_sim = None, 0.0
         for gid, entry in self.gallery.items():
-            if entry["active"]:
+            if entry["active"] and entry.get("camera_id") == exclude_camera_id:
                 continue
             sim = self._cosine_sim(embedding, entry["embedding"])
             if sim > best_sim:
@@ -42,11 +42,12 @@ class CrossCameraGallery:
                 self.ema_alpha * self.gallery[gid]["embedding"] + (1 - self.ema_alpha) * embedding
             )
         else:
-            gid = self._match_or_create(embedding)
+            gid = self._match_or_create(embedding, exclude_camera_id=camera_id)
             self.local_to_global[key] = gid
             self.gallery[gid] = {"embedding": embedding, "last_seen": self.frame_idx, "active": True}
         self.gallery[gid]["active"] = True
         self.gallery[gid]["last_seen"] = self.frame_idx
+        self.gallery[gid]["camera_id"] = camera_id
         return gid
 
     def prune_inactive(self, active_keys_this_frame):
@@ -87,10 +88,10 @@ class ByteTrackReID:
     def _cosine_sim(a, b):
         return float(np.dot(a, b) / (np.linalg.norm(a) * np.linalg.norm(b) + 1e-6))
 
-    def _match_or_create(self, embedding):
+    def _match_or_create(self, embedding, exclude_camera_id=None):
         best_id, best_sim = None, 0.0
         for gid, entry in self.gallery.items():
-            if entry["active"]:
+            if entry["active"] and entry.get("camera_id") == exclude_camera_id:
                 continue
             sim = self._cosine_sim(embedding, entry["embedding"])
             if sim > best_sim:

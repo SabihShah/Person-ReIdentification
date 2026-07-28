@@ -5,4 +5,4 @@ testing.ipynb
 osnet_ain_ms_d_c.pth
 __pycache__
 test-videos
-
+weights/yolo26m.pt

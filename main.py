@@ -10,6 +10,8 @@ from trackers import (
     ByteTrackReID, CrossCameraGallery, DEFAULT_YAMLS,
 )
 
+MODEL_PATH = "weights/yolov8m.pt"
+
 
 def parse_args():
     parser = argparse.ArgumentParser()
@@ -22,7 +24,7 @@ def parse_args():
     return parser.parse_args()
 
 
-def is_touching_boundary(x1, y1, x2, y2, frame_shape, margin=5):
+def is_touching_boundary(x1, y1, x2, y2, frame_shape, margin=0):
     h, w = frame_shape[:2]
     return x1 <= margin or y1 <= margin or x2 >= w - margin or y2 >= h - margin
 
@@ -45,12 +47,12 @@ def prompt_sources():
 def build_tracker(tracker_name, extractor):
     """Returns (model_or_detector, tracker_or_None) - one fresh instance per camera."""
     if tracker_name in DEFAULT_YAMLS:
-        return YOLO("yolov8m.pt"), None
+        return YOLO(MODEL_PATH), None
     if tracker_name == "bytetrack_reid":
-        model = YOLO("yolov8m.pt")
+        model = YOLO(MODEL_PATH)
         return model, ByteTrackReID(model, extractor)
     if tracker_name == "deepsort":
-        detector = YOLO("yolov8m.pt")
+        detector = YOLO(MODEL_PATH)
         tracker = DeepSort(
             max_age=30, n_init=5, nms_max_overlap=0.7,
             max_cosine_distance=0.2, nn_budget=100,
@@ -59,7 +61,7 @@ def build_tracker(tracker_name, extractor):
         )
         return detector, tracker
     # if tracker_name == "ocsort":
-    #     detector = YOLO("yolov8m.pt")
+    #     detector = YOLO(MODEL_PATH)
     #     tracker = OCSORT(det_thresh=0.5, max_age=30, min_hits=3, iou_threshold=0.3)
     #     return detector, tracker
     raise ValueError(tracker_name)
@@ -148,12 +150,14 @@ def main():
         for frame, boxes in zip(frames, resolved_boxes):
             for x1, y1, x2, y2, gid in boxes:
                 cv2.rectangle(frame, (x1, y1), (x2, y2), (0, 255, 0), 2)
-                cv2.putText(frame, f"ID {gid}", (x1, y1 - 10),
+                (tw, th), _ = cv2.getTextSize(f"{gid}", cv2.FONT_HERSHEY_SIMPLEX, 0.8, 2)
+                cx, cy = (x1+x2)//2, (y1+y2)//2
+                cv2.putText(frame, f"{gid}", (cx - tw//2, cy - th//2),
                             cv2.FONT_HERSHEY_SIMPLEX, 0.8, (0, 255, 0), 2)
 
         combined = cv2.hconcat(frames)
         cv2.namedWindow(f"{args.tracker} - {num_cams} sources", cv2.WINDOW_NORMAL)
-        cv2.resizeWindow(f"{args.tracker} - {num_cams} sources", 1280, 720)
+        cv2.resizeWindow(f"{args.tracker} - {num_cams} sources", 640, 480)
         cv2.imshow(f"{args.tracker} - {num_cams} sources", combined)
         if cv2.waitKey(1) & 0xFF == ord('q'):
             break
