@@ -6,6 +6,29 @@ camera's field of view into another's.
 
 ![Cross-camera re-identification](asset/reid_diagram.png)
 
+## Why This Matters
+
+Any real-world camera network — a mall, a campus, a warehouse floor — has
+non-overlapping or partially-overlapping fields of view. A tracker alone only
+keeps identity consistent _within_ one camera's continuous footage; the
+moment someone leaves that view, their identity is lost unless something
+re-establishes it elsewhere. That "something" is Re-ID, and it's what turns a
+set of independent camera feeds into a single coherent system that can
+reason about a person across space, not just across frames.
+
+**Applications:**
+
+- **Security & surveillance** — following a person of interest across a
+  building's camera network without manual review of every feed.
+- **Retail analytics** — customer path/dwell-time tracking across a store's
+  camera zones for layout and staffing decisions.
+- **Smart city / traffic** — pedestrian flow analysis across intersections
+  or transit hubs.
+- **Sports analytics** — maintaining player identity across broadcast camera
+  cuts and angle changes.
+- **Loss prevention** — linking a flagged individual's movement across
+  multiple store cameras in real time.
+
 ## 1. Single-Camera Tracking
 
 Five tracker variants were implemented and compared to understand the
@@ -50,7 +73,7 @@ whichever tracker is running.
 **Run:**
 
 ```bash
-python main.py --tracker bytetrack_reid
+python main.py --tracker bytetrack_pro
 ```
 
 You'll be prompted for the number of camera/video sources and a path (webcam
