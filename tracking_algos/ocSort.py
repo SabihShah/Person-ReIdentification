@@ -1,18 +1,18 @@
 import cv2
 import numpy as np
 from ultralytics import YOLO
-from boxmot import OcSort
+from boxmot import OCSORT
 
 model = YOLO("yolov8n.pt")
 
-tracker = OcSort(
+tracker = OCSORT(
     det_thresh=0.5,     # min detection confidence to consider
     max_age=30,         # frames a lost track survives on Kalman-only prediction
     min_hits=3,         # frames needed before a track is confirmed
-    iou_threshold=0.3,  # IoU gating for association
+    asso_threshold=0.5, # IoU gating for association
 )
 
-cap = cv2.VideoCapture(0)
+cap = cv2.VideoCapture(2)
 
 while True:
     ret, frame = cap.read()

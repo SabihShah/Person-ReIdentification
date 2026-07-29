@@ -2,7 +2,7 @@ import argparse
 import cv2
 from ultralytics import YOLO
 from deep_sort_realtime.deepsort_tracker import DeepSort
-# from boxmot import OCSORT
+from boxmot import OCSORT
 from torchreid.utils import FeatureExtractor
 
 from trackers import (
@@ -60,10 +60,10 @@ def build_tracker(tracker_name, extractor):
             embedder_wts="weights/osnet_x1_0_imagenet.pth", half=True, embedder_gpu=True,
         )
         return detector, tracker
-    # if tracker_name == "ocsort":
-    #     detector = YOLO(MODEL_PATH)
-    #     tracker = OCSORT(det_thresh=0.5, max_age=30, min_hits=3, iou_threshold=0.3)
-    #     return detector, tracker
+    if tracker_name == "ocsort":
+        detector = YOLO(MODEL_PATH)
+        tracker = OCSORT(det_thresh=0.7, max_age=30, min_hits=3, asso_threshold=0.5)
+        return detector, tracker
     raise ValueError(tracker_name)
 
 
