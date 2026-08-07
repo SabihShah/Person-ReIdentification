@@ -5,4 +5,6 @@ testing.ipynb
 osnet_ain_ms_d_c.pth
 __pycache__
 test-videos
-weights/yolo26m.pt
+weights
+ReID_algos/fast-reid
+ReID_algos/AGW/market_agw_R50-ibn.pth

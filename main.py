@@ -1,16 +1,30 @@
+import collections
+import collections.abc
+
+for name in (
+    "Mapping",
+    "MutableMapping",
+    "Sequence",
+    "Iterable",
+    "MutableSequence",
+    "MutableSet",
+    "Set",
+):
+    setattr(collections, name, getattr(collections.abc, name))
 import argparse
 import cv2
 from ultralytics import YOLO
 from deep_sort_realtime.deepsort_tracker import DeepSort
 from boxmot import OCSORT
 from torchreid.utils import FeatureExtractor
+from ReID_algos.AGW.agw import AGWExtrcator
 
 from trackers import (
     track_ultralytics, track_deepsort, track_ocsort,
     ByteTrackReID, CrossCameraGallery, DEFAULT_YAMLS,
 )
 
-MODEL_PATH = "weights/yolov8m.pt"
+MODEL_PATH = "weights/yolov8l.pt"
 
 
 def parse_args():
@@ -21,7 +35,27 @@ def parse_args():
         required=True,
         help="Tracker to run identically on every camera/video",
     )
+    parser.add_argument(
+        "--reid",
+        choices=["osnet", "agw"],
+        default="osnet",        
+    )
     return parser.parse_args()
+
+def build_extractor(reid_name):
+    if reid_name == "osnet":
+        return FeatureExtractor(
+            model_name="osnet_x1_0",
+            model_path="weights/osnet_x1_0_market1501.pth",
+            device="cuda",
+        )
+
+    if reid_name == "agw":
+        return AGWExtrcator(
+            config_file="ReID_algos/fast-reid/configs/Market1501/AGW_R50-ibn.yml",
+            weights_path="ReID_algos/AGW/market_agw_R50-ibn.pth",
+            device="cuda"
+        )
 
 
 def is_touching_boundary(x1, y1, x2, y2, frame_shape, margin=0):
@@ -57,7 +91,7 @@ def build_tracker(tracker_name, extractor):
             max_age=30, n_init=5, nms_max_overlap=0.7,
             max_cosine_distance=0.2, nn_budget=100,
             embedder="torchreid", embedder_model_name="osnet_x1_0",
-            embedder_wts="weights/osnet_x1_0_imagenet.pth", half=True, embedder_gpu=True,
+            embedder_wts="weights/osnet_x1_0_market1501.pth", half=True, embedder_gpu=True,
         )
         return detector, tracker
     if tracker_name == "ocsort":
@@ -83,11 +117,7 @@ def main():
     num_cams = len(sources)
     cam_ids = [f"cam{i + 1}" for i in range(num_cams)]
 
-    extractor = FeatureExtractor(
-        model_name="osnet_x1_0",
-        model_path="weights/osnet_x1_0_imagenet.pth",
-        device="cuda",
-    )
+    extractor = build_extractor(args.reid)
     gallery = CrossCameraGallery()
 
     caps = []
@@ -111,9 +141,10 @@ def main():
             if crop.size == 0:
                 continue
             emb = extractor([crop]).cpu().numpy()[0]
-            gid = gallery.get_global_id(camera_id, local_id, emb)
+            gid = gallery.get_global_id(camera_id, local_id, emb, crop)
             active_keys.add((camera_id, local_id))
-            resolved.append((x1, y1, x2, y2, gid))
+            if gid is not None:
+                resolved.append((x1, y1, x2, y2, gid)) 
         return resolved
 
     while True:
@@ -157,7 +188,7 @@ def main():
 
         combined = cv2.hconcat(frames)
         cv2.namedWindow(f"{args.tracker} - {num_cams} sources", cv2.WINDOW_NORMAL)
-        cv2.resizeWindow(f"{args.tracker} - {num_cams} sources", 640, 480)
+        cv2.resizeWindow(f"{args.tracker} - {num_cams} sources", 1920,1080)
         cv2.imshow(f"{args.tracker} - {num_cams} sources", combined)
         if cv2.waitKey(1) & 0xFF == ord('q'):
             break

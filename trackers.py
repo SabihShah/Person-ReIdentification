@@ -1,22 +1,51 @@
 import numpy as np
+import cv2
 
 
 class CrossCameraGallery:
     """Tracker-agnostic global gallery. Key local tracks by (camera_id, local_id)
     since local IDs reset independently per camera/tracker instance."""
 
-    def __init__(self, sim_threshold=0.5, max_gallery_age=300, ema_alpha=0.9):
+    def __init__(self, sim_threshold=0.5, max_gallery_age=300, ema_alpha=0.9,
+                 emb_weight=0.7, hist_weight=0.3, confirm_frames=3):
         self.gallery = {}          # global_id -> {"embedding", "last_seen", "active"}
         self.local_to_global = {}  # (camera_id, local_id) -> global_id
+        self.pending = {}
         self.next_global_id = 0
         self.frame_idx = 0
         self.sim_threshold = sim_threshold
         self.max_gallery_age = max_gallery_age
         self.ema_alpha = ema_alpha
+        self.emb_weight = emb_weight
+        self.hist_weight = hist_weight
+        self.confirm_frames = confirm_frames
 
     @staticmethod
     def _cosine_sim(a, b):
         return float(np.dot(a, b) / (np.linalg.norm(a) * np.linalg.norm(b) + 1e-6))
+
+    @staticmethod
+    def _color_hist(crop_bgr, bins=(30, 32)):
+        hsv = cv2.cvtColor(crop_bgr, cv2.COLOR_BGR2HSV)
+        hist = cv2.calcHist([hsv], [0, 1], None, list(bins), [0, 180, 0, 256])
+        hist = cv2.normalize(hist, hist)
+        return hist
+
+    @staticmethod
+    def _hist_sim(h1, h2):
+        return float(max(cv2.compareHist(h1, h2, cv2.HISTCMP_CORREL), 0.0))
+
+    def _best_candidate(self, embedding, hist):
+        best_id, best_score = None, 0.0
+        for gid, entry in self.gallery.items():
+            if entry["active"]:
+                continue
+            emb_sim = self._cosine_sim(embedding, entry["embedding"])
+            hist_sim = self._hist_sim(hist, entry["hist"])
+            score = self.emb_weight * emb_sim + self.hist_weight * hist_sim
+            if score > best_score:
+                best_score, best_id = score, gid
+        return best_id, best_score
 
     def _match_or_create(self, embedding, exclude_camera_id):
         best_id, best_sim = None, 0.0
@@ -34,21 +63,55 @@ class CrossCameraGallery:
         self.next_global_id += 1
         return gid
 
-    def get_global_id(self, camera_id, local_id, embedding):
+    def get_global_id(self, camera_id, local_id, embedding, crop):
         key = (camera_id, local_id)
+        hist = self._color_hist(crop)
+ 
         if key in self.local_to_global:
             gid = self.local_to_global[key]
-            self.gallery[gid]["embedding"] = (
-                self.ema_alpha * self.gallery[gid]["embedding"] + (1 - self.ema_alpha) * embedding
-            )
-        else:
-            gid = self._match_or_create(embedding, exclude_camera_id=camera_id)
+            self._update_entry(gid, camera_id, embedding, hist)
+            return gid
+ 
+        candidate_gid, score = self._best_candidate(embedding, hist)
+ 
+        if candidate_gid is None or score < self.sim_threshold:
+            gid = self.next_global_id
+            self.next_global_id += 1
             self.local_to_global[key] = gid
-            self.gallery[gid] = {"embedding": embedding, "last_seen": self.frame_idx, "active": True}
+            self.gallery[gid] = {
+                "embedding": embedding, "hist": hist,
+                "last_seen": self.frame_idx, "active": True, "camera_id": camera_id,
+            }
+            self.pending.pop(key, None)
+            return gid
+
+        pending = self.pending.get(key)
+        if pending and pending["candidate_gid"] == candidate_gid:
+            pending["count"] += 1
+        else:
+            pending = {"candidate_gid": candidate_gid, "count": 1}
+        self.pending[key] = pending
+ 
+        if pending["count"] < self.confirm_frames:
+            print(f"[cross-cam gallery] tentative match to ID {candidate_gid} "
+                  f"score={score:.3f} ({pending['count']}/{self.confirm_frames}) - awaiting confirmation")
+            return None
+ 
+        print(f"[cross-cam gallery] CONFIRMED match score={score:.3f} -> reusing ID {candidate_gid}")
+        gid = candidate_gid
+        self.local_to_global[key] = gid
+        self._update_entry(gid, camera_id, embedding, hist)
+        self.pending.pop(key, None)
+        return gid
+
+    def _update_entry(self, gid, camera_id, embedding, hist):
+        self.gallery[gid]["embedding"] = (
+            self.ema_alpha * self.gallery[gid]["embedding"] + (1 - self.ema_alpha) * embedding
+        )
+        self.gallery[gid]["hist"] = hist
         self.gallery[gid]["active"] = True
         self.gallery[gid]["last_seen"] = self.frame_idx
         self.gallery[gid]["camera_id"] = camera_id
-        return gid
 
     def prune_inactive(self, active_keys_this_frame):
         """Call BEFORE resolving this frame's detections, using the raw set of
@@ -59,6 +122,10 @@ class CrossCameraGallery:
             if key not in active_keys_this_frame:
                 self.gallery[self.local_to_global[key]]["active"] = False
                 del self.local_to_global[key]
+
+        for key in list(self.pending.keys()):
+            if key not in active_keys_this_frame:
+                del self.pending[key]
 
     def purge_stale(self):
         """Call once per frame after resolving, to drop very old inactive entries."""
@@ -72,7 +139,7 @@ class ByteTrackReID:
     """ByteTrack + a manual appearance gallery on top, so identities survive
     full occlusion/exit-reentry instead of just ByteTrack's short track_buffer."""
 
-    def __init__(self, model, extractor, sim_threshold=0.7, max_gallery_age=300, ema_alpha=0.9):
+    def __init__(self, model, extractor, sim_threshold=0.8, max_gallery_age=300, ema_alpha=0.9):
         self.model = model
         self.extractor = extractor
         self.sim_threshold = sim_threshold
@@ -105,7 +172,7 @@ class ByteTrackReID:
         return gid
 
     def update(self, frame):
-        result = self.model.track(frame, persist=True, classes=[0], tracker="bytetrack.yaml", verbose=False)[0]
+        result = self.model.track(frame, persist=True, classes=[0], tracker="bytetrack.yaml", verbose=False, conf=0.75)[0]
         active_track_ids = set()
         boxes = []
 
@@ -158,7 +225,7 @@ DEFAULT_YAMLS = {
 def track_ultralytics(model, frame, tracker_name, custom_yaml=None):
     """Shared by ByteTrack and BoT-SORT. Pass custom_yaml to override the default config."""
     tracker_yaml = custom_yaml or DEFAULT_YAMLS[tracker_name]
-    result = model.track(frame, persist=True, classes=[0], tracker=tracker_yaml, verbose=False)[0]
+    result = model.track(frame, persist=True, classes=[0], tracker=tracker_yaml, verbose=False, conf=0.9)[0]
     boxes = []
     if result.boxes.id is not None:
         xyxy = result.boxes.xyxy.cpu().numpy()
@@ -168,7 +235,7 @@ def track_ultralytics(model, frame, tracker_name, custom_yaml=None):
     return boxes
 
 
-def track_deepsort(detector, tracker, frame, conf_thresh=0.5):
+def track_deepsort(detector, tracker, frame, conf_thresh=0.75):
     results = detector(frame, classes=[0], conf=conf_thresh, verbose=False)[0]
     detections = []
     for box in results.boxes:

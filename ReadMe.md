@@ -39,7 +39,7 @@ person leaving/re-entering the frame.
 | Tracker                                | Approach                                                                                                                                         |
 | -------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------ |
 | **ByteTrack**                          | Motion-only, two-stage (high/low confidence) association                                                                                         |
-| **ByteTrack + ReID** (`bytetrack_pro`) | ByteTrack + a manual OSNet-based gallery layered on top, so identity survives full occlusion/re-entry, not just ByteTrack's short `track_buffer` |
+| **ByteTrack + ReID** (`bytetrack_reid`) | ByteTrack + a manual OSNet-based gallery layered on top, so identity survives full occlusion/re-entry, not just ByteTrack's short `track_buffer` |
 | **DeepSORT**                           | Motion (Kalman/IoU) + appearance embedding cascade matching                                                                                      |
 | **BoT-SORT**                           | ByteTrack + camera motion compensation + optional ReID branch                                                                                    |
 | **OC-SORT**                            | Robust motion-only Kalman formulation, no appearance model                                                                                       |
@@ -86,6 +86,8 @@ angles/lighting conditions, which limits cross-camera matching accuracy.
 This is the open problem going into the next phase — testing stronger
 ReID backbones (AGW, TransReID, CLIP-ReID) that generalize better to
 viewpoint and domain shift.
+
+To do: add a geometric/position consistency check to replace that lost constraint for overlapping views — either a homography between the two camera views (mark corresponding ground-plane points once, then check whether two simultaneous detections map to a plausible shared location) or, for non-overlapping setups, defined exit/entry zones per camera with a minimum plausible transit time between them.
 
 ## Requirements
 
