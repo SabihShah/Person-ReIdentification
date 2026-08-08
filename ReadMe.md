@@ -47,7 +47,7 @@ person leaving/re-entering the frame.
 **Run:**
 
 ```bash
-python main.py --tracker <bytetrack|bytetrack_pro|botsort|deepsort|ocsort>
+python main.py --tracker <bytetrack|bytetrack_reid|botsort|deepsort|ocsort>
 ```
 
 ## 2. Cross-Camera Re-Identification
