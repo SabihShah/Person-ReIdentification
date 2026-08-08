@@ -106,6 +106,10 @@ This is the open problem going into the next phase — testing stronger
 ReID backbones (AGW, TransReID, CLIP-ReID) that generalize better to
 viewpoint and domain shift.
 
+**TODO**
+Add support for:
+- TransReID
+- CLIP-ReID
 
 **Additonal checks that can be added to improve Re-Identification (Future Works):**
 - Geometric/position consistency check to replace that lost constraint for overlapping views — either a homography between the two camera views (mark corresponding ground-plane points once, then check whether two simultaneous detections map to a plausible shared location) or, for non-overlapping setups, defined exit/entry zones per camera with a minimum plausible transit time between them.
