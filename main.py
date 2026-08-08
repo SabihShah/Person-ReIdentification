@@ -141,10 +141,9 @@ def main():
             if crop.size == 0:
                 continue
             emb = extractor([crop]).cpu().numpy()[0]
-            gid = gallery.get_global_id(camera_id, local_id, emb, crop)
+            gid = gallery.get_global_id(camera_id, local_id, emb)
             active_keys.add((camera_id, local_id))
-            if gid is not None:
-                resolved.append((x1, y1, x2, y2, gid)) 
+            resolved.append((x1, y1, x2, y2, gid))
         return resolved
 
     while True:

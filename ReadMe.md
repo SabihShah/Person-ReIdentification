@@ -70,10 +70,29 @@ whichever tracker is running.
   assigned an ID until fully inside the frame — this prevents a partial-body
   embedding from polluting the gallery and causing false non-matches.
 
-**Run:**
+AGW is also implemented using fastreid. Use the below command to run the program. Replace osnet with 
+agw to use AGW feature extractor. 
 
+fast-reid will have to be installed for using AGW extractor. Run below commands to install fastreid
+
+```
+git clone https://github.com/JDAI-CV/fast-reid.git
+cd fast-reid
+pip install -r docs/requirements.txt
+```
+
+```
+export PYTHONPATH=$PYTHONPATH:</absolute/path/to/fast-reid>
+```
+
+**Note:** fastreid is not installed as a package in python so the official repo have to be used for its implementation. export the PYTHONPATH in ubuntu to use it outside the fastreid repo.
+
+Also if you are using python>3.10, collections library is not imported directly from fastreid, it is changed to fastreid.abc so a mapping has been added in the code to fix that. If you have python<=3.10, that part can be removed from main.py
+
+**Run:**
 ```bash
-python main.py --tracker bytetrack_pro
+pip install -r requirements.txt
+python main.py --tracker bytetrack_reid --reid osnet
 ```
 
 You'll be prompted for the number of camera/video sources and a path (webcam
@@ -87,7 +106,11 @@ This is the open problem going into the next phase — testing stronger
 ReID backbones (AGW, TransReID, CLIP-ReID) that generalize better to
 viewpoint and domain shift.
 
-To do: add a geometric/position consistency check to replace that lost constraint for overlapping views — either a homography between the two camera views (mark corresponding ground-plane points once, then check whether two simultaneous detections map to a plausible shared location) or, for non-overlapping setups, defined exit/entry zones per camera with a minimum plausible transit time between them.
+
+**Additonal checks that can be added to improve Re-Identification (Future Works):**
+- Geometric/position consistency check to replace that lost constraint for overlapping views — either a homography between the two camera views (mark corresponding ground-plane points once, then check whether two simultaneous detections map to a plausible shared location) or, for non-overlapping setups, defined exit/entry zones per camera with a minimum plausible transit time between them.
+- Color Histogram Similarity, a simple HSV color histogram comparison (cv2.compareHist) is extremely sensitive to exact clothing color
+- Multi-frame confirmation — don't commit to a match on a single frame's embedding. Require the same candidate to win the match for 2-3 consecutive frames before finalizing the global ID assignment
 
 ## Requirements
 
